@@ -6,21 +6,21 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../IPaymaster.sol";
 import "../Singleton.sol";
 import "./SimpleWalletForTokens.sol";
-import "hardhat/console.sol";
 
 import "./ExecLib.sol";
 import "hardhat/console.sol";
 /**
  * A sample paymaster that uses the user's token to pay for gas.
  * NOTE: actual paymaster should use some price oracle, and might also attempt to swap tokens for ETH.
- * for simplicity, this contract uses hard-coded token price, and assumes its owner should provide it with enough
- * eth (and collect the accumulated tokens)
+ * For simplicity, this contract uses hard-coded token price, and assumes its owner should provide it with enough
+ * eth (it doesn't swap the tokens to eth, and thus it collects the paid tokens)
  */
 contract TokenPaymaster is Ownable, IPaymaster {
 
-    //calculated cost of the postOp
-    uint COST_OF_POST = 30000;
-
+    //a TokenPaymaster charges its user for the actual cost, including the "postOp" - but it can't be checked on-chain.
+    // instead, the postOp should be written so that its cost is as deterministic as possible.
+    // the value should be calculate beforehand (see the paymaster.test), and passed as constructor param
+    uint immutable gasCostOfPostOp;
     IERC20 immutable token;
     Singleton immutable singleton;
 
@@ -31,9 +31,10 @@ contract TokenPaymaster is Ownable, IPaymaster {
     //  (needed to allow payment of "approve" call)
     mapping(bytes32 => bool) public knownWalletRuntime;
 
-    constructor(Singleton _singleton, IERC20 _token) {
+    constructor(Singleton _singleton, IERC20 _token, uint _gasCostOfPostOp) {
         singleton = _singleton;
         token = _token;
+        gasCostOfPostOp = _gasCostOfPostOp;
         knownWalletConstructor[keccak256(type(SimpleWalletForTokens).creationCode)] = true;
 
         knownWalletRuntime[keccak256(type(SimpleWalletForTokens).runtimeCode)] = true;
@@ -41,8 +42,7 @@ contract TokenPaymaster is Ownable, IPaymaster {
     }
 
     function _onlyThroughSingleton() internal view {
-        console.log('sender %s singleton %s', msg.sender, address(singleton));
-        require(msg.sender == address(singleton) , "postOp: only through singleton");
+        require(msg.sender == address(singleton), "postOp: only through singleton");
     }
 
     modifier onlyThroughSingleton() {
@@ -67,7 +67,7 @@ contract TokenPaymaster is Ownable, IPaymaster {
 
     // verify that the user has enough tokens.
     function payForOp(UserOperation calldata userOp) external view override returns (bytes32 context) {
-        uint tokenPrefund = ethToToken(UserOperationLib.requiredPreFund(userOp));
+        uint tokenPrefund = ethToToken(UserOperationLib.requiredPreFund(userOp) + gasCostOfPostOp * userOp.maxFeePerGas);
 
         address target = userOp.target;
         if (userOp.initCode.length != 0) {
@@ -83,8 +83,6 @@ contract TokenPaymaster is Ownable, IPaymaster {
 
         if (token.allowance(target, address(this)) < tokenPrefund) {
 
-            uint preGas = gasleft();
-
             //can only trust the "exec" method of known wallet code.
             bytes32 bytecodeHash;
             assembly {
@@ -94,10 +92,7 @@ contract TokenPaymaster is Ownable, IPaymaster {
 
             (bool success, address _dest, bytes calldata params) = ExecLib.decodeExecMethod(userOp.callData, IERC20.approve.selector);
             if (success) {
-                (address _spender, uint _amount) = abi.decode(params, (address,uint));
-
-                uint postGas = gasleft();
-                console.log("=== eval approve gasUsed: %s", preGas - postGas);
+                (address _spender, uint _amount) = abi.decode(params, (address, uint));
 
                 require(_dest == address(token), "approve: wrong token");
                 require(_spender == address(this), "approve: spender not me");
@@ -118,11 +113,14 @@ contract TokenPaymaster is Ownable, IPaymaster {
     // this method will be called just after the user's TX with postRevert=false.
     // BUT: if the user changed its balance and that postOp reverted, then it gets called again, after reverting
     // the user's TX
-    function postOp(PostOpMode mode, UserOperation calldata userOp, bytes32 context, uint actualGasCost) external override {
+    function postOp(PostOpMode mode, UserOperation calldata userOp, bytes32 context, uint actualGasCost) external onlyThroughSingleton override {
         //we don't really care about the mode, we just pay the gas with the user's tokens.
         (mode,context);
-        uint charge = ethToToken(actualGasCost + COST_OF_POST * UserOperationLib.gasPrice(userOp));
+        uint charge = ethToToken(actualGasCost + gasCostOfPostOp * UserOperationLib.gasPrice(userOp));
         //actualGasCost is known to be no larger than the above requiredPreFund, so the transfer should succeed.
         token.transferFrom(userOp.target, address(this), charge);
+        emit PostOp(actualGasCost);
     }
+
+    event PostOp(uint actualGasCost);
 }

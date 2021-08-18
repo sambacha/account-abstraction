@@ -15,13 +15,15 @@ import {
   TokenPaymaster,
   TokenPaymaster__factory
 } from "../typechain";
-import {AddressZero, createWalletOwner, fund, getBalance, getTokenBalance, tonumber} from "./testutils";
-import {fillAndSign} from "./UserOp";
+import {AddressZero, createWalletOwner, fund, getBalance, getTokenBalance, HashZero, tonumber} from "./testutils";
+import {fillAndSign, fillUserOp} from "./UserOp";
 import {parseEther} from "ethers/lib/utils";
 import {UserOperation} from "./UserOperation";
 
 
 describe("Singleton with paymaster", function () {
+
+  const gasCostOfPost = 47209;
 
   let singleton: Singleton
   let testUtil: TestUtil
@@ -37,16 +39,41 @@ describe("Singleton with paymaster", function () {
     wallet = await new SimpleWallet__factory(ethersSigner).deploy()
     await wallet.init(singleton.address, await walletOwner.getAddress())
     await fund(wallet)
+
   })
+
 
   describe('using TokenPaymaster (account pays in TST tokens)', () => {
     let tst: TestToken
     let paymaster: TokenPaymaster
     before(async () => {
       tst = await new TestToken__factory(ethersSigner).deploy()
-      paymaster = await new TokenPaymaster__factory(ethersSigner).deploy(singleton.address, tst.address)
+      paymaster = await new TokenPaymaster__factory(ethersSigner).deploy(singleton.address, tst.address, gasCostOfPost)
       paymaster.addStake({value: parseEther('2')})
+      // console.log('cost of post', await validateCostOfPostOp())
     })
+
+    async function calculateCostOfPostOp1() {
+      let addr = await ethersSigner.getAddress();
+      const userop = await fillAndSign({target: addr, nonce: 1}, walletOwner)
+      const testPaymaster = await new TokenPaymaster__factory(ethersSigner).deploy(addr, tst.address, gasCostOfPost)
+      await tst.mint(addr, 1e18.toString())
+      await tst.approve(testPaymaster.address, 1e18.toString());
+      const rcpt = await testPaymaster.postOp(0, userop, HashZero, 1, {gasLimit: 1e6}).then(ret => ret.wait())
+      return rcpt.gasUsed.toNumber()
+    }
+
+    async function validateCostOfPostOp() {
+      const prePostOp = await paymaster.queryFilter(paymaster.filters.PostOp()).then(logs => logs[0].args)
+      const postPostOp = await singleton.queryFilter(singleton.filters.UserOperationEvent()).then(logs => logs[0].args)
+      const gasPrice = postPostOp.actualGasPrice.toNumber()
+      let actualGasCostBeforePostOp = prePostOp.actualGasCost.toNumber() / gasPrice;
+      let actualGasCostAfterPostOp = postPostOp.actualGasCost.toNumber() / gasPrice;
+      const calculatedCostOfPost = actualGasCostAfterPostOp - actualGasCostBeforePostOp
+      expect(calculatedCostOfPost/gasCostOfPost).to.closeTo(1, 0.01,
+        `expected gasCostOfPost = ${calculatedCostOfPost}`)
+      return calculatedCostOfPost
+    }
 
     describe('#handleOps', () => {
       let calldata: string
@@ -86,11 +113,11 @@ describe("Singleton with paymaster", function () {
 
         const postTokenBalance = await tst.balanceOf(wallet.address)
         const logs = await singleton.queryFilter(singleton.filters.UserOperationEvent())
-        console.log('postOp revert reason',await singleton.queryFilter(singleton.filters.PaymasterPostOpFailed()))
+        console.log('postOp revert reason', await singleton.queryFilter(singleton.filters.PaymasterPostOpFailed()))
         const tokensPaid = preTokenBalance.sub(postTokenBalance).toNumber()
         const actualCostInTokens = await paymaster.ethToToken(logs[0].args.actualGasCost).then(tonumber)
-        expect(tokensPaid/actualCostInTokens).to.closeTo(1, 0.2,
-          `paid ${tokensPaid} actualCostInTokens ${actualCostInTokens}`)
+        await validateCostOfPostOp()
+        expect(tokensPaid).to.equal(actualCostInTokens)
       });
     })
 
@@ -126,6 +153,7 @@ describe("Singleton with paymaster", function () {
         }, walletOwner, singleton)
 
         const rcpt = await singleton.handleOps([createOp], redeemerAddress).then(tx => tx.wait())
+        await validateCostOfPostOp()
         console.log('\t== create gasUsed=', rcpt.gasUsed.toString())
         created = true
       });
@@ -138,7 +166,7 @@ describe("Singleton with paymaster", function () {
 
         const walletAddr = await singleton.getAccountAddress(walletConstructor, 0, walletOwner.address)
         const postBalance = await getTokenBalance(tst, walletAddr)
-        expect(1e18-postBalance).to.above(10000)
+        expect(1e18 - postBalance).to.above(10000)
       });
 
       it('should reject if account already created', async function () {
