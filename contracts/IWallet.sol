@@ -9,7 +9,7 @@ interface IWallet {
     // @param userOp the user operation
     // @param requiredPrefund how much this wallet should pre-fund the transaction.
     // @note that after execFromSingleton returns, the excess is sent back to the wallet.
-    // @note of requiredPrefund is zero, the wallet MUST NOT send anything (the paymaster pays)
+    // @note if requiredPrefund is zero, the wallet MUST NOT send anything (the paymaster pays)
     function payForSelfOp(UserOperation calldata userOp, uint requiredPrefund) external;
 
     //called by singleton, only after payForSelfOp succeeded.
