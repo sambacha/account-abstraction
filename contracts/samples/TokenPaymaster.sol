@@ -47,8 +47,8 @@ contract TokenPaymaster is Ownable, IPaymaster {
     mapping(bytes32 => bool) public knownWallets;
 
     // verify that the user has enough tokens.
-    function payForOp(UserOperation calldata userOp) external view override returns (bytes32 context) {
-        uint tokenPrefund = ethToToken(UserOperationLib.requiredPreFund(userOp));
+    function payForOp(UserOperation calldata userOp, uint requiredPreFund) external view override returns (bytes32 context) {
+        uint tokenPrefund = ethToToken(requiredPreFund);
 
         if (userOp.initCode.length != 0) {
             bytes32 bytecodeHash = keccak256(userOp.initCode);

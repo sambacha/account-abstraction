@@ -167,9 +167,12 @@ contract Singleton is StakeManager {
     function validatePrepayment(uint opIndex, UserOperation calldata op) private returns (uint prefund, bytes32 context){
 
         IWallet target = IWallet(_getOrCreateTarget(op));
+        bool hasPaymaster = op.hasPaymaster();
+        uint requiredPreFund = op.requiredPreFund();
+        uint walletRequiredPrefund = hasPaymaster ? 0 : requiredPreFund;
         uint preBalance = address(this).balance;
         uint preGas = gasleft();
-        try target.payForSelfOp{gas : op.verificationGas}(op) {
+        try target.payForSelfOp{gas : op.verificationGas}(op, walletRequiredPrefund) {
         } catch Error(string memory revertReason) {
             revert FailedOp(opIndex, address(0), revertReason);
         } catch {
@@ -178,8 +181,8 @@ contract Singleton is StakeManager {
         uint payForSelfOp_gasUsed = preGas - gasleft();
         prefund = address(this).balance - preBalance;
 
-        if (!op.hasPaymaster()) {
-            if (prefund < op.requiredPreFund()) {
+        if (!hasPaymaster) {
+            if (prefund < requiredPreFund) {
                 revert FailedOp(opIndex, address(0), "wallet didn't pay prefund");
             }
             context = bytes32(0);
@@ -187,13 +190,12 @@ contract Singleton is StakeManager {
             if (prefund != 0) {
                 revert FailedOp(opIndex, address(0), "has paymaster but wallet paid");
             }
-            if (!isValidStake(op)) {
+            if (!isValidStake(op, requiredPreFund)) {
                 revert FailedOp(opIndex, op.paymaster, "not enough stake");
             }
             //no pre-pay from paymaster
-            try IPaymaster(op.paymaster).payForOp{gas : op.verificationGas - payForSelfOp_gasUsed}(op) returns (bytes32 _context){
+            try IPaymaster(op.paymaster).payForOp{gas : op.verificationGas - payForSelfOp_gasUsed}(op, requiredPreFund) returns (bytes32 _context){
                 context = _context;
-                prefund = 0;
             } catch Error(string memory revertReason) {
                 revert FailedOp(opIndex, op.paymaster, revertReason);
             } catch {
@@ -240,9 +242,8 @@ contract Singleton is StakeManager {
         emit UserOperationEvent(op.target, op.paymaster, actualGasCost, gasPrice, success);
     }
 
-
-    function isValidStake(UserOperation calldata op) internal view returns (bool) {
-        return isPaymasterStaked(op.paymaster, PAYMASTER_STAKE + op.requiredPreFund());
+    function isValidStake(UserOperation calldata op, uint requiredPreFund) internal view returns (bool) {
+        return isPaymasterStaked(op.paymaster, PAYMASTER_STAKE + requiredPreFund);
     }
 }
 
