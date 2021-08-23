@@ -29,37 +29,28 @@ library UserOperationLib {
         return min(userOp.maxFeePerGas, min(userOp.maxPriorityFeePerGas + block.basefee, tx.gasprice));
     }
 
-    function requiredGas(UserOperation memory userOp) internal pure returns (uint prefund) {
-        uint callgas = userOp.callGas;
-        if (userOp.initCode.length > 0) {
-            uint create2gas = 32000 + 200 * userOp.callData.length;
-            callgas += create2gas;
-        }
-        return callgas;
+    function requiredPreFund(UserOperation calldata userOp) internal pure returns (uint prefund) {
+        //NOTE: verificationGas should include cost of create: create2gas = 32000 + 200 * userOp.callData.length;
+        return (userOp.callGas + userOp.verificationGas) * userOp.maxFeePerGas;
     }
 
-    //TODO: compiler crashes when changing param to "calldata"
-    function requiredPreFund(UserOperation memory userOp) internal pure returns (uint prefund) {
-        return requiredGas(userOp) * userOp.maxFeePerGas;
-    }
-
-    function pack(UserOperation memory userOp) internal pure returns (bytes memory) {
+    function pack(UserOperation calldata userOp) internal pure returns (bytes memory) {
         //TODO: eip712-style ?
         return abi.encode(
             userOp.target,
             userOp.nonce,
-            userOp.initCode,
-            userOp.callData,
+            keccak256(userOp.initCode),
+            keccak256(userOp.callData),
             userOp.callGas,
             userOp.verificationGas,
             userOp.maxFeePerGas,
             userOp.maxPriorityFeePerGas,
             userOp.paymaster,
-            userOp.paymasterData
+            keccak256(userOp.paymasterData)
         );
     }
 
-    function hash(UserOperation memory userOp) internal pure returns (bytes32) {
+    function hash(UserOperation calldata userOp) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32",
             keccak256(pack(userOp))));
     }

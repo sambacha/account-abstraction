@@ -10,25 +10,25 @@ export function packUserOp(op: UserOperation): string {
   return defaultAbiCoder.encode([
     'address', // target
     'uint256', // nonce
-    'bytes', // initCode
-    'bytes', // callData
+    'bytes32', // initCode
+    'bytes32', // callData
     'uint64', // callGas
     'uint', // verificationGas
     'uint64', // maxFeePerGas
     'uint64', // maxPriorityFeePerGas
     'address', // paymaster
-    'bytes', // paymasterData
+    'bytes32', // paymasterData
   ], [
     op.target,
     op.nonce,
-    op.initCode,
-    op.callData,
+    keccak256(op.initCode),
+    keccak256(op.callData),
     op.callGas,
     op.verificationGas,
     op.maxFeePerGas,
     op.maxPriorityFeePerGas,
     op.paymaster,
-    op.paymasterData
+    keccak256( op.paymasterData)
   ])
 }
 

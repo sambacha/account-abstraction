@@ -60,9 +60,10 @@ describe("SimpleWallet", function () {
       await wallet.init(singleton, walletOwner.address)
       await ethersSigner.sendTransaction({from: accounts[0], to: wallet.address, value: parseEther('0.2')})
       const callGas = 5
+      const verificationGas = 3
       const maxFeePerGas = 3e9
-      userOp = signUserOp(fillUserOp({target: wallet.address, callGas, maxFeePerGas}), walletOwner)
-      expectedPay = maxFeePerGas * callGas
+      userOp = signUserOp(fillUserOp({target: wallet.address, callGas, verificationGas, maxFeePerGas}), walletOwner)
+      expectedPay = maxFeePerGas * (callGas + verificationGas)
       preBalance = await getBalance(wallet.address)
       const ret = await wallet.payForSelfOp(userOp, expectedPay)
       await ret.wait()
@@ -79,7 +80,7 @@ describe("SimpleWallet", function () {
       expect(await wallet.nonce()).to.equal(1)
     });
     it('should reject same TX on nonce error', async () => {
-      await expect(wallet.payForSelfOp(userOp,0)).to.revertedWith("invalid nonce")
+      await expect(wallet.payForSelfOp(userOp, 0)).to.revertedWith("invalid nonce")
     });
 
   })
