@@ -183,7 +183,7 @@ contract Singleton is StakeManager {
         return address(uint160(uint256(hash)));
     }
 
-    //call wallet.payForSelfOp, and vlaidate it paid as needed.
+    //call wallet.payForSelfOp, and validate that it paid as needed.
     // return actual value sent from wallet to "this"
     function _validateWalletPrepayment(uint opIndex, UserOperation calldata op, uint walletRequiredPrefund) internal returns (uint prefund, uint gasUsedByPayForSelfOp) {
         uint preGas = gasleft();
