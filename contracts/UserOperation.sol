@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.7;
 
 import "hardhat/console.sol";
 
@@ -41,17 +41,6 @@ library UserOperationLib {
     //TODO: compiler crashes when changing param to "calldata"
     function requiredPreFund(UserOperation memory userOp) internal pure returns (uint prefund) {
         return requiredGas(userOp) * userOp.maxFeePerGas;
-    }
-
-    function clientPrePay(UserOperation calldata userOp) internal pure returns (uint){
-        if (hasPaymaster(userOp)) {
-            return 0;
-        }
-        return requiredPreFund(userOp);
-    }
-
-    function hasPaymaster(UserOperation memory userOp) internal pure returns (bool) {
-        return userOp.paymaster != address(0);
     }
 
     function pack(UserOperation memory userOp) internal pure returns (bytes memory) {

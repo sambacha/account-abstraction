@@ -123,7 +123,7 @@ contract Singleton is StakeManager {
     function simulateWalletValidation(UserOperation calldata userOp) external returns (uint gasUsedByPayForSelfOp){
         require(msg.sender == address(0), "must be called off-chain with from=zero-addr");
         uint requiredPreFund = userOp.requiredPreFund();
-        uint walletRequiredPrefund = userOp.hasPaymaster() ? 0 : requiredPreFund;
+        uint walletRequiredPrefund = userOp.paymaster != address(0) ? 0 : requiredPreFund;
         (gasUsedByPayForSelfOp,) = _validateWalletPrepayment(0, userOp, walletRequiredPrefund);
     }
 
@@ -136,7 +136,7 @@ contract Singleton is StakeManager {
      * The node must also verify it doesn't use banned opcode, and that it doesn't reference storage outside the paymaster's data
      */
     function simulatePaymasterValidation(UserOperation calldata userOp, uint gasUsedByPayForSelfOp) external view returns (bytes32 context){
-        if (!userOp.hasPaymaster()) {
+        if (userOp.paymaster == address(0)) {
             return bytes32(0);
         }
         uint requiredPreFund = userOp.requiredPreFund();
@@ -226,7 +226,7 @@ contract Singleton is StakeManager {
     function validatePrepayment(uint opIndex, UserOperation calldata op) private returns (uint prefund, bytes32 context){
 
         createTargetIfNeeded(op);
-        bool hasPaymaster = op.hasPaymaster();
+        bool hasPaymaster = op.paymaster != address(0);
         uint requiredPreFund = op.requiredPreFund();
         uint walletRequiredPrefund = hasPaymaster ? 0 : requiredPreFund;
         uint gasUsedByPayForSelfOp;
@@ -248,7 +248,7 @@ contract Singleton is StakeManager {
         uint gasPrice = UserOperationLib.gasPrice(op);
         uint preGas = gasleft();
         uint actualGasCost = actualGas * gasPrice;
-        if (!op.hasPaymaster()) {
+        if (op.paymaster == address(0)) {
             //NOTE: deliberately ignoring revert: wallet should accept refund.
             bool sendOk = payable(op.target).send(prefund - actualGasCost);
             (sendOk);
