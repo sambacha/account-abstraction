@@ -361,7 +361,7 @@ describe("EntryPoint", function () {
           gasLimit: 1e7
         })).to.revertedWith('didn\'t pay prefund')
 
-        // await expect(await ethers.provider.getCode(op.target).then(x => x.length)).to.equal(2, "wallet exists before creation")
+        // await expect(await ethers.provider.getCode(op.sender).then(x => x.length)).to.equal(2, "wallet exists before creation")
       });
 
       it('should succeed to create account after prefund', async () => {

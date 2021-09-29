@@ -29,7 +29,7 @@ contract EntryPoint is StakeManager {
     //handleOps reverts with this error struct, to mark the offending op
     // NOTE: if simulateOp passes successfully, there should be no reason for handleOps to fail on it.
     // @param opIndex - index into the array of ops to the failed one (in simulateOp, this is always zero)
-    // @param paymaster - if paymaster.payForOp fails, this will be the paymaster's address. if payForSelfOp failed,
+    // @param paymaster - if paymaster.verifyPaymasterUserOp fails, this will be the paymaster's address. if verifyUserOp failed,
     //      this value will be zero (since it failed before accessing the paymaster)
     // @param reason - revert reason
     //  only to aid troubleshooting of wallet/paymaster reverts
@@ -172,9 +172,9 @@ contract EntryPoint is StakeManager {
         }
     }
 
-    // get the target address, or use "create2" to create it.
+    // get the sender address, or use "create2" to create it.
     // note that the gas allocation for this creation is deterministic (by the size of callData),
-    // so it is not checked on-chain, and adds to the gas used by payForSelfOp
+    // so it is not checked on-chain, and adds to the gas used by verifyUserOp
     function _createSenderIfNeeded(UserOperation calldata op) internal {
         if (op.initCode.length != 0) {
             //its a create operation. run the create2
@@ -203,7 +203,7 @@ contract EntryPoint is StakeManager {
         return address(uint160(uint256(hash)));
     }
 
-    //call wallet.payForSelfOp, and validate that it paid as needed.
+    //call wallet.verifyUserOp, and validate that it paid as needed.
     // return actual value sent from wallet to "this"
     function _validateWalletPrepayment(uint opIndex, UserOperation calldata op, uint requiredPrefund, PaymentMode paymentMode) internal returns (uint gasUsedByPayForSelfOp, uint prefund) {
         uint preGas = gasleft();
@@ -245,7 +245,7 @@ contract EntryPoint is StakeManager {
         gasUsedByPayForSelfOp = preGas - gasleft();
     }
 
-    //validate paymaster.payForOp
+    //validate paymaster.verifyPaymasterUserOp
     function _validatePaymasterPrepayment(uint opIndex, UserOperation calldata op, uint requiredPreFund, uint gasUsedByPayForSelfOp) internal view returns (bytes memory context, uint gasUsedByPayForOp) {
         uint preGas = gasleft();
         if (!isValidStake(op, requiredPreFund)) {

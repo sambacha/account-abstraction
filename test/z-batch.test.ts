@@ -94,7 +94,7 @@ describe("Batch gas testing", function () {
           await fund(wallet1, '0.5')
           const op1 = await fillAndSign({
             initCode: WalletConstructor(entryPoint.address, walletOwner1.address),
-            // callData: walletExecCounterFromSingleton.data,
+            // callData: walletExecCounterFromEntryPoint.data,
             maxPriorityFeePerGas: 1e9,
           }, walletOwner1, entryPoint)
           // requests are the same, so estimate is the same too.
