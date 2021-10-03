@@ -23,6 +23,7 @@ import {
 import {fillAndSign} from "./UserOp";
 import {parseEther} from "ethers/lib/utils";
 import {UserOperation} from "./UserOperation";
+import {Create2Factory} from "../src/Create2Factory";
 
 
 describe("EntryPoint with paymaster", function () {
@@ -36,9 +37,10 @@ describe("EntryPoint with paymaster", function () {
 
   before(async function () {
     await checkForGeth()
+    await new Create2Factory(ethers.provider).deployFactory()
 
     testUtil = await new TestUtil__factory(ethersSigner).deploy()
-    entryPoint = await new EntryPoint__factory(ethersSigner).deploy(0,0)
+    entryPoint = await new EntryPoint__factory(ethersSigner).deploy(Create2Factory.contractAddress, 0,0)
     walletOwner = createWalletOwner('1')
     wallet = await new SimpleWallet__factory(ethersSigner).deploy(entryPoint.address, await walletOwner.getAddress())
     await fund(wallet)

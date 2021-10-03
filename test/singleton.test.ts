@@ -26,6 +26,7 @@ import {ethers} from 'hardhat'
 import {toBuffer} from "ethereumjs-util";
 import {defaultAbiCoder, parseEther} from "ethers/lib/utils";
 import exp from "constants";
+import {Create2Factory} from "../src/Create2Factory";
 
 describe("EntryPoint", function () {
 
@@ -42,8 +43,10 @@ describe("EntryPoint", function () {
   before(async function () {
 
     await checkForGeth()
+    await new Create2Factory(ethers.provider).deployFactory()
+
     testUtil = await new TestUtil__factory(ethersSigner).deploy()
-    entryPoint = await new EntryPoint__factory(ethersSigner).deploy(0, unstakeDelayBlocks)
+    entryPoint = await new EntryPoint__factory(ethersSigner).deploy(Create2Factory.contractAddress, 0, unstakeDelayBlocks)
     //static call must come from address zero, to validate it can only be called off-chain.
     entryPointView = entryPoint.connect(ethers.provider.getSigner(AddressZero))
     walletOwner = createWalletOwner()
@@ -382,8 +385,6 @@ describe("EntryPoint", function () {
           callGas: 2e6,
           verificationGas: 2e6
         }, walletOwner1, entryPoint)
-
-        // console.log('op=', {...op1, callData: op1.callData.length, initCode: op1.initCode.length})
 
         const op2 = await fillAndSign({
           callData: walletExecCounterFromEntryPoint.data,
