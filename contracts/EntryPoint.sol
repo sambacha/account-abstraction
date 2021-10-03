@@ -160,13 +160,6 @@ contract EntryPoint is StakeManager {
         return _validatePaymasterPrepayment(0, userOp, requiredPreFund, gasUsedByPayForSelfOp);
     }
 
-    function _create2(bytes calldata initCode, uint salt) internal returns (address sender) {
-        bytes memory createData = initCode;
-        assembly {
-            sender := create2(0, add(createData, 32), mload(createData), salt)
-        }
-    }
-
     // get the sender address, or use "create2" to create it.
     // note that the gas allocation for this creation is deterministic (by the size of callData),
     // so it is not checked on-chain, and adds to the gas used by verifyUserOp
@@ -183,14 +176,15 @@ contract EntryPoint is StakeManager {
         }
     }
 
-    //get counterfactual account address.
-    function getAccountAddress(bytes memory bytecode, uint _salt) public view returns (address) {
+    //get counterfactual sender address.
+    // use the initCode and salt in the UserOperation tot create this sender contract
+    function getSenderAddress(bytes memory initCode, uint _salt) public view returns (address) {
         bytes32 hash = keccak256(
             abi.encodePacked(
                 bytes1(0xff),
                 address(create2factory),
                 _salt,
-                keccak256(bytecode)
+                keccak256(initCode)
             )
         );
 

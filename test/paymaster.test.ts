@@ -92,7 +92,7 @@ describe("EntryPoint with paymaster", function () {
       });
 
       it('should succeed to create account with tokens', async () => {
-        const preAddr = await entryPoint.getAccountAddress(WalletConstructor(entryPoint.address, walletOwner.address), 0)
+        const preAddr = await entryPoint.getSenderAddress(WalletConstructor(entryPoint.address, walletOwner.address), 0)
         await paymaster.mintTokens(preAddr, parseEther('1'))
 
         //paymaster is the token, so no need for "approve" or any init function...
@@ -118,7 +118,7 @@ describe("EntryPoint with paymaster", function () {
         const ethRedeemed = await getBalance(redeemerAddress)
         expect(ethRedeemed).to.above(100000)
 
-        const walletAddr = await entryPoint.getAccountAddress(WalletConstructor(entryPoint.address, walletOwner.address), 0)
+        const walletAddr = await entryPoint.getSenderAddress(WalletConstructor(entryPoint.address, walletOwner.address), 0)
         const postBalance = await getTokenBalance(paymaster, walletAddr)
         expect(1e18 - postBalance).to.above(10000)
       });

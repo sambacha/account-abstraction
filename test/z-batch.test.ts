@@ -89,7 +89,7 @@ describe("Batch gas testing", function () {
         let opsGasCollected = 0
         while (++count) {
           const walletOwner1 = createWalletOwner()
-          const wallet1 = await entryPoint.getAccountAddress(WalletConstructor(entryPoint.address, walletOwner1.address), 0)
+          const wallet1 = await entryPoint.getSenderAddress(WalletConstructor(entryPoint.address, walletOwner1.address), 0)
           await fund(wallet1, '0.5')
           const op1 = await fillAndSign({
             initCode: WalletConstructor(entryPoint.address, walletOwner1.address),

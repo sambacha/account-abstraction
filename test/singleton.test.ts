@@ -333,7 +333,7 @@ describe("EntryPoint", function () {
 
       it('should succeed to create account after prefund', async () => {
 
-        const preAddr = await entryPoint.getAccountAddress(WalletConstructor(entryPoint.address, walletOwner.address), 0)
+        const preAddr = await entryPoint.getSenderAddress(WalletConstructor(entryPoint.address, walletOwner.address), 0)
         await fund(preAddr)
         createOp = await fillAndSign({
           initCode: WalletConstructor(entryPoint.address, walletOwner.address),
@@ -351,7 +351,7 @@ describe("EntryPoint", function () {
       });
 
       it('should reject if account already created', async function () {
-        const preAddr = await entryPoint.getAccountAddress(WalletConstructor(entryPoint.address, walletOwner.address), 0)
+        const preAddr = await entryPoint.getSenderAddress(WalletConstructor(entryPoint.address, walletOwner.address), 0)
         if (await ethers.provider.getCode(preAddr).then(x => x.length) == 2)
           this.skip()
 
@@ -383,7 +383,7 @@ describe("EntryPoint", function () {
         const count = await counter.populateTransaction.count()
         const execCounterCount = await wallet.populateTransaction.exec(counter.address, count.data!)
         walletExecCounterFromEntryPoint = await wallet.populateTransaction.execFromEntryPoint(execCounterCount.data!)
-        wallet1 = await entryPoint.getAccountAddress(WalletConstructor(entryPoint.address, walletOwner1.address), 0)
+        wallet1 = await entryPoint.getSenderAddress(WalletConstructor(entryPoint.address, walletOwner1.address), 0)
         wallet2 = await new SimpleWallet__factory(ethersSigner).deploy(entryPoint.address, walletOwner2.address)
         await fund(wallet1)
         await fund(wallet2.address)
