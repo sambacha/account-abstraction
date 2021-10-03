@@ -2,6 +2,7 @@
 import {BigNumberish, Contract, ethers, Signer} from "ethers";
 import {arrayify, hexConcat, hexlify, hexZeroPad, keccak256, parseEther} from "ethers/lib/utils";
 import {Provider} from "@ethersproject/providers";
+import {log} from "util";
 
 const factoryAddress = '0xce0042B868300000d44A59004Da54A005ffdcf9f'
 const factoryDeployer = '0xBb6e024b9cFFACB947A71991E386681B1Cd1477D'
@@ -25,8 +26,14 @@ export class Create2Factory {
    * @param initCode
    * @param salt
    */
-  async deploy(initCode: string, salt: BigNumberish, gasLimit?: BigNumberish | 'estimate') {
+  async deploy(initCode: string, salt: BigNumberish, gasLimit?: BigNumberish | 'estimate'): Promise<string> {
     await this.deployFactory()
+
+    const addr = this.getDeployedAddress(initCode, salt)
+    if ( await this.provider.getCode(addr).then(code=>code.length) > 2) {
+      return addr
+    }
+
     const factory = new Contract(factoryAddress, ['function deploy(bytes _initCode, bytes32 _salt) returns(address)'], this.signer)
     const saltBytes32 = hexZeroPad(hexlify(salt), 32)
     if (gasLimit == 'estimate') {
@@ -42,7 +49,8 @@ export class Create2Factory {
       + 32000
       + 21000
     const ret = await factory.deploy(initCode, saltBytes32, {gasLimit})
-    const rcpt = await ret.wait()
+    const r = await ret.wait()
+    return addr
   }
 
   /**

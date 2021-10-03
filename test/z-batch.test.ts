@@ -17,7 +17,7 @@ import {
   createWalletOwner,
   fund,
   checkForGeth,
-  rethrow, WalletConstructor, tonumber
+  rethrow, WalletConstructor, tonumber, deployEntryPoint
 } from "./testutils";
 import {fillAndSign} from "./UserOp";
 import {UserOperation} from "./UserOperation";
@@ -41,9 +41,8 @@ describe("Batch gas testing", function () {
   before(async function () {
 
     await checkForGeth()
-    // await new Create2Factory(ethers.provider).deployFactory()
     testUtil = await new TestUtil__factory(ethersSigner).deploy()
-    entryPoint = await new EntryPoint__factory(ethersSigner).deploy(Create2Factory.contractAddress, 22000, 0)
+    entryPoint = await deployEntryPoint(22000, 0)
     //static call must come from address zero, to validate it can only be called off-chain.
     entryPointView = entryPoint.connect(ethers.provider.getSigner(AddressZero))
     walletOwner = createWalletOwner()

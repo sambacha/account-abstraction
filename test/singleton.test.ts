@@ -17,7 +17,16 @@ import {
   createWalletOwner,
   fund,
   checkForGeth,
-  rethrow, tostr, WalletConstructor, calcGasUsage, objdump, tonumber, checkForBannedOps, ONE_ETH, TWO_ETH
+  rethrow,
+  tostr,
+  WalletConstructor,
+  calcGasUsage,
+  objdump,
+  tonumber,
+  checkForBannedOps,
+  ONE_ETH,
+  TWO_ETH,
+  deployEntryPoint
 } from "./testutils";
 import {fillAndSign, DefaultsForUserOp} from "./UserOp";
 import {UserOperation} from "./UserOperation";
@@ -43,10 +52,10 @@ describe("EntryPoint", function () {
   before(async function () {
 
     await checkForGeth()
-    await new Create2Factory(ethers.provider).deployFactory()
 
     testUtil = await new TestUtil__factory(ethersSigner).deploy()
-    entryPoint = await new EntryPoint__factory(ethersSigner).deploy(Create2Factory.contractAddress, 0, unstakeDelayBlocks)
+    entryPoint = await deployEntryPoint(0,unstakeDelayBlocks)
+
     //static call must come from address zero, to validate it can only be called off-chain.
     entryPointView = entryPoint.connect(ethers.provider.getSigner(AddressZero))
     walletOwner = createWalletOwner()

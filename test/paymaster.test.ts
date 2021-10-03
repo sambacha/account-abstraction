@@ -18,7 +18,7 @@ import {
   fund,
   getBalance,
   getTokenBalance, objdump, rethrow,
-  checkForGeth, WalletConstructor, calcGasUsage
+  checkForGeth, WalletConstructor, calcGasUsage, deployEntryPoint
 } from "./testutils";
 import {fillAndSign} from "./UserOp";
 import {parseEther} from "ethers/lib/utils";
@@ -37,10 +37,10 @@ describe("EntryPoint with paymaster", function () {
 
   before(async function () {
     await checkForGeth()
-    await new Create2Factory(ethers.provider).deployFactory()
 
     testUtil = await new TestUtil__factory(ethersSigner).deploy()
-    entryPoint = await new EntryPoint__factory(ethersSigner).deploy(Create2Factory.contractAddress, 0,0)
+    entryPoint = await deployEntryPoint(0,0)
+
     walletOwner = createWalletOwner('1')
     wallet = await new SimpleWallet__factory(ethersSigner).deploy(entryPoint.address, await walletOwner.getAddress())
     await fund(wallet)
